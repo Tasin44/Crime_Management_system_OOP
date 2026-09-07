@@ -304,29 +304,111 @@ class Crime:
 
 
 
+class Case:
+    '''
+    Case should not inherit from Crime just because it has a Crime ID.
+
+    A Case is associated with a Crime; it is not a specialized type of Crime.
+
+    So:
+
+        Case
+        ↓
+        has/reference
+        ↓
+        Crime
+
+    not:
+
+        Case
+        ↓
+        inherits from
+        ↓
+        Crime
+    
+    '''
+    list_of_all_cases=[]
+
+    def __init__(self,case_id,crime_obj,date_opened,case_status,notes,date_closed=None):
+
+        # Initialize Case-specific attributes
+        self.case_id = case_id
+        self.crime=crime_obj
+        self.date_opened = date_opened
+        self.case_status = case_status
+        self.notes = notes
+        self.date_closed = date_closed  # Optional, defaults to None
+        Case.list_of_all_cases.append(self)
+
+    @staticmethod
+    def view_all_case_details():
+        if not Case.list_of_all_cases:
+            return f"No cases found"
+        cases="----------------All the crimse converted in case----------------\n"
+        for x in Case.list_of_all_cases:
+            cases+=f"Case Id: {x.case_id}, Opend Date: {x.date_opened}, Case current Status: {x.case_status},  Crime id of this Case:{x.crime.crime_id}, Crime Type for this Case:{x.crime.crime_type}\n"
+        return cases 
 
 
+    def assigned_officers(self,officer):
+        if officer in self.crime.assigned_officers:
+            raise ValueError(
+                f"Officer {officer.name} is already assigned to Case {self.case_id}"
+            )
+        self.crime.assigned_officers.append(officer)
+
+        if self not in officer.assigned_cases:#এটার মানে হচ্ছে, এই কেইস টা যদি এই অফিসারের assigned_cases লিস্টে অলরেডি না থাকে, তবে তা ইনক্লুড করা 
+            officer.assigned_cases.append(self)
+        
+        return f"Officer {officer.name} assigned to Case#{self.case_id}"
+    '''
+    changes the related Crime:
+
+        Case
+        ↓
+        crime
+        ↓
+        assigned_officers
+        ↓
+        Kamal
+
+    and also updates the officer:
+
+        Kamal
+        ↓
+        assigned_cases
+        ↓
+        case1
+
+    That's perfectly valid.
+    '''
+
+    def view_all_assigned_officer(self):
+
+        all_officers=f"All the assigned officer to the case : {self.case_id}\n"
+
+        for x in self.crime.assigned_officers:
+            all_officers+=f"Officer name {x.name} rank {x.rank}"
+        return all_officers
 
 
+    def assign_suspects(self,criminal):
+        if criminal in self.crime.suspects:
+            raise ValueError(
+                f"Criminal {criminal.name} already assigned as suspect on the case {self.case_id}"
+            )
+        self.crime.suspects.append(criminal)
 
+        if self not in criminal.crime_records: 
+            criminal.crime_records.append(self)
 
+        return f"Criminal {criminal.name} assigned with the case {self.case_id}"
+    
+    def view_all_assign_suspects(self):
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        all_suspects=f"All suspects of the Case {self.case_id}\n"
+        for x in self.crime.suspects:
+            all_suspects+=f"{x.id} {x.name}"
 
 
 # obj=Police("2004","Mr Kamal","44","Male","9878723434","Constable","CID")
@@ -424,3 +506,13 @@ print(crime1.modify_crime_record(
     officer_kamal,
     banana="something"
 ))
+
+case1=Case("2000",crime1,"23-5-26","Open","This is a running Case")
+print(case1.view_all_case_details())
+
+# case1.assigned_officers(officer_kamal)
+
+print(case1.view_all_assigned_officer())
+
+case1.assign_suspects(criminal_jack)
+print(case1.view_all_assign_suspects())
