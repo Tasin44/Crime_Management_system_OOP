@@ -1,5 +1,6 @@
 
 
+from re import search
 from abc import abstractmethod,ABC
 
 class Person(ABC):
@@ -21,7 +22,8 @@ class Person(ABC):
     @abstractmethod
     def view_all_members(self):
         pass
-    
+
+
 class Police(Person):
 
     list_of_police=[]
@@ -192,7 +194,6 @@ class Criminal(Person):
         return f"New crime record added to {self.name}"
 
 
-
 class Crime: 
     list_of_all_crimes=[]
 
@@ -299,11 +300,6 @@ class Crime:
         return report
 
 
-
-
-
-
-
 class Case:
     '''
     Case should not inherit from Crime just because it has a Crime ID.
@@ -408,9 +404,147 @@ class Case:
 
         all_suspects=f"All suspects of the Case {self.case_id}\n"
         for x in self.crime.suspects:
-            all_suspects+=f"{x.id} {x.name}"
+            all_suspects+=f"{x.id} {x.name}\n"
+        return all_suspects
 
 
+    def remove_suspects(self,criminal):
+        if criminal in self.crime.suspects:
+            self.crime.suspects.remove(criminal)
+            return f"Criminal {criminal.name} removed from the case {self.case_id}"
+        return f"Criminal {criminal.name} isn't a part of the  case {self.case_id}"
+
+
+    def assign_victims(self,victim_obj):
+        if victim_obj in self.crime.victims:
+            raise ValueError(f"This Victim {victim_obj.name} already on that case ")
+        self.crime.victims.append(victim_obj)
+        return f"Victims {victim_obj.name} assigned with the case {self.case_id}"
+
+    def view_all_victims(self):
+        all_victims=f"All victims of the case {self.case_id}\n"
+        for x in self.crime.victims:
+            all_victims+=f"{x.name} {x.id}\n"
+        return all_victims
+
+
+    def remove_victim(self,victim_obj):
+        if victim_obj in self.crime.victims:
+            self.crime.victims.remove(victim_obj)
+            return f"Victim {victim_obj.name} removed from the case {self.case_id}"
+        return f"Victim {victim_obj.name} not related with the case"
+
+
+    def change_case_status(self,status=None):
+        self.case_status=status
+        return f"Case status for the case {self.case_id} changed to {status}"
+
+
+    def add_evidence(self,new_evidence=None):
+        self.crime.evidence.append(new_evidence)
+
+        all_evidence = f"All the latest evidence of the case {self.case_id}\n"
+
+        for x in self.crime.evidence:
+            all_evidence+=x +"\n"
+        
+        return f"Evidence added with the case {self.case_id}\n All the evidence {all_evidence}"
+
+
+
+    @staticmethod
+    def global_search(query):
+
+        if not query:
+            return []
+        
+        q = str(query).lower().strip()
+        results=[]
+
+        for case in Case.list_of_all_cases:
+            # crime=case.crime \
+
+            searchable_text=" ".join([
+                str(case.case_id),
+                str(case.crime.crime_id),
+                case.crime.crime_type.lower(),
+                case.crime.location.lower(),
+                case.case_status.lower(),
+                str(case.crime.date),
+                *[s.name.lower() for s in case.crime.suspects],
+                *[o.name.lower() for o in case.crime.assigned_officers],
+                *[v.name.lower() for v in case.crime.victims]
+            ])
+            '''
+            The * operator unpacks the list comprehension into individual arguments.
+            With *: [a, b] becomes two separate items: "alice", "bob".
+            Without *: [a, b] remains a single nested list object: ["alice", "bob"].
+            Since you are passing these to " ".join(), which expects flat strings, omitting * would cause a TypeError because it cannot join a list inside a list. The first six items don't need * because they are already individual values, not lists.
+            '''
+
+            if q in searchable_text:
+                results.append(case)
+        
+        return results
+
+
+
+
+class Victims(Person):
+    list_of_victims=[]
+    def __init__(self,id,name,age,gender,phone,address,case_obj,statement):
+        super().__init__(id,name,age,gender,phone)
+        self.case_obj = case_obj
+        self.statment=statement
+        Victims.list_of_victims.append(self)
+
+    
+    def show_profile(self):
+        return f"Victim Id: {self.id} His name: {self.name} The Case he's handling {self.case_obj.case_id} and his case current status : {self.case_obj.case_status}"
+
+    def search_profile(self,name=None,id=None):
+        if name: 
+            print(f"Search profile for the victim , whose name {name}")
+        else: 
+            print(f"Search profile for the victim, whose id {id}")
+
+        for x in Victims.list_of_victims:
+            if x.name == name: 
+                return f"Victims with the name {x.name} found on the victim list"
+            elif x.id == id:
+                return f"Victims with the id {x.id} found on the victim list"
+    
+    def view_all_members(self):
+        victim_list="List of all the victims\n"
+        for x in Victims.list_of_victims:
+            victim_list+=f"Victim name {x.name}, His id {x.id} Case he's with {self.case_obj.case_id}\n" #I think on victim can have multiple case how to show it
+        return victim_list
+
+    def view_all_cases_of_victim(self):
+        all_case=f"All Cases of the Victim {self.name}\n"
+        for x in self.case_obj.list_of_all_cases:
+            all_case+=f"{x.case_id} {x.case_status} \n"
+        return all_case
+
+    def update_victim_profile(self,user,**kwargs):
+        if not isinstance(user,Police):
+            raise ValueError(f"Only Police can update victims information")
+        
+        for key,value in kwargs.items():
+            if hasattr(self,key):
+                setattr(self,key,value)
+            else:
+                raise ValueError(f"Key {key} is not any attribute of the victim profile")
+
+        return f"Victim{self.name} profile updated by the cop {user.name}"
+
+
+
+
+
+
+
+#------------------------------------------------------------------------------------
 # obj=Police("2004","Mr Kamal","44","Male","9878723434","Constable","CID")
 # obj2=Criminal("1009","Don1","48","Male","12345667","dhaka","Wanted","DON")
 # obj3=Police("20043","Mr Kamal3","443","Male","98787234343","Constable","CID")
@@ -443,9 +577,9 @@ try:
         description="Stole a wallet from a pedestrian.",
         severity="Medium",
         suspects=[criminal_don],       # Foreign Key: List of Criminal Objects
-        victims=["Mr. X"],
+        victims=[],
         assigned_officers=[officer_kamal], # Foreign Key: List of Police Objects
-        evidence="CCTV Footage",
+        evidence=["CCTV fotage"],
         case_status="Investigating"
     )
     
@@ -457,9 +591,9 @@ try:
         description="Suspected homicide.",
         severity="High",
         suspects=[criminal_don, criminal_jack],
-        victims=["Mr. Y"],
+        victims=[],#Initialize the crime with an empty list first, then add the victim later using your existing assign_victims method:
         assigned_officers=[officer_rahim],
-        evidence="Knife, Fingerprints",
+        evidence=[],
         case_status="Open"
     )
 except ValueError as e:
@@ -515,4 +649,33 @@ print(case1.view_all_case_details())
 print(case1.view_all_assigned_officer())
 
 case1.assign_suspects(criminal_jack)
+
+print(case1.remove_suspects(criminal_jack))
 print(case1.view_all_assign_suspects())
+
+#id,name,age,gender,phone,address,case_obj,statement
+victim1=Victims(id="999",name="Mr Vicky",age=44,gender="male",phone=834343,address="Dhaka",case_obj=case1,statement="I want the result soon")
+
+
+print(victim1.show_profile())
+
+print(case1.assign_victims(victim1))
+print(case1.view_all_victims())
+
+
+
+print(case1.change_case_status(status="Closed"))
+
+print(case1.add_evidence(new_evidence="Finger Print"))
+
+
+print(victim1.view_all_cases_of_victim())
+print(victim1.update_victim_profile(officer_kamal,name="zamal"))#Argument Order: user is the first positional parameter, so officer_kamal must come before name="zamal".
+
+
+
+search_results=Case.global_search("theFT")
+print(f"Found {len(search_results)} cases for 'theft' ")
+
+for c in search_results:
+    print(f" >Case #{c.case_id} | {c.crime.crime_type} | {c.crime.location}")
