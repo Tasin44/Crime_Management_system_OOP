@@ -2,6 +2,8 @@
 
 from re import search
 from abc import abstractmethod,ABC
+from collections import Counter
+from datetime import datetime
 
 class Person(ABC):
     def __init__(self,id,name,age,gender,phone):
@@ -451,6 +453,23 @@ class Case:
         return f"Evidence added with the case {self.case_id}\n All the evidence {all_evidence}"
 
 
+    '''
+    -why I'm considering this two as a static method why not other method like class or object
+
+    @staticmethod
+    def global_search(query):
+
+    @staticmethod
+    def generate_statistics()
+
+
+    Because these methods do not require access to a specific instance's data (self) or the class itself (cls).
+
+    global_search: Operates on Case.list_of_all_cases, which is a shared class-level list. It doesn't need any individual case object's state.
+    generate_statistics: Aggregates data from multiple global lists (Crime.list_of_all_crimes, Criminal.list_of_criminals, etc.). It is a pure utility function that produces a report independent of any single object.
+
+    Using @staticmethod makes this explicit: "This function belongs to the Case namespace logically, but it does not depend on any Case instance." You can call it directly via Case.global_search("theft") without creating a dummy object first.
+    '''
 
     @staticmethod
     def global_search(query):
@@ -486,9 +505,121 @@ class Case:
                 results.append(case)
         
         return results
+    
+    @staticmethod
+    def generate_statistics():
+        '''
+        stats হলো একটি Nested Dictionary (Dictionary-এর ভেতরে Dictionary)।
+        stats["open_cases"] → সরাসরি Integer value (0, 1, 2...)
+        stats["crime_types"] → নিজেই একটি আলাদা Dictionary/Counter ({"Theft": 5, "Murder": 2})
+        তাই প্রথমটির ক্ষেত্রে সরাসরি += 1 করা যায়, কিন্তু দ্বিতীয়টির ক্ষেত্রে আগে Key সিলেক্ট করে [crime.crime_type] তারপর += 1 করতে হয়।
+        
+        '''
+        stats ={
+
+            "total_cases":len(Case.list_of_all_cases),
+            "open_cases":0,
+            "closed_cases": 0,
+            "investigating_cases": 0,
+            "total_criminals":len(Criminal.list_of_criminals),
+            "wanted_criminals":0,
+            "total_officers": len(Police.list_of_police),
+            "total_victims": len(Victims.list_of_victims),
+            "crime_types": Counter(),
+            "locations": Counter(),
+            "months": Counter(),
+            "officer_assignments": Counter()
+        }
+
+        for case in Case.list_of_all_cases:
+            crime=case.crime
+
+            status=case.case_status.lower()
+            if status=="open":
+                stats["open_cases"]=stats["open_cases"]+1
+            elif status == "closed": stats["closed_cases"] += 1
+            else: stats["investigating_cases"] += 1
+
+
+            stats["crime_types"][crime.crime_type]+=1
+            '''
+            এখানে আপনি একটু কনফিউজড হয়েছেন। stats["crime_types"] হলো একটি Dictionary (বা Counter), সাধারণ সংখ্যা নয়। তাই এখানে + 1 করলে হবে না, বরং নির্দিষ্ট Key-এর ভ্যালু বাড়াতে হবে।
+            stats["crime_types"] = পুরো ডিকশনারি (যেমন: {"Theft": 5, "Murder": 2})
+            stats["crime_types"]["Theft"] = শুধু Theft-এর সংখ্যা (যেমন: 5)
+            '''
+            stats["locations"][crime.location]+=1
+
+            try: 
+                dt=datetime.strptime(str(crime.date),"%Y-%m-%d")
+                stats["months"][dt.strftime("%B %Y")]+=1
+            except (ValueError,TypeError):
+                pass
+
+            for officer in crime.assigned_officers:
+                stats["officer_assignments"][officer.name]+=1
+        
+        for criminal in Criminal.list_of_criminals:
+            if getattr(criminal,'status','').lower()=='wanted':
+                stats["wanted_criminals"]+=1
+        
+        most_common_type=stats["crime_types"].most_common(1)
+        most_reported_area=stats["locations"].most_common(1)
+        most_active_officer=stats["officer_assignments"].most_common(1)
+        '''
+         most_common(1) মেথডটি একটি List of Tuples রিটার্ন করে।
+
+            🔍 most_common() আসলে কী?
+            এটি Python-এর built-in মেথড। এটি collections.Counter ক্লাসের নিজস্ব ফাংশন, যা অটোমেটিক্যালি আইটেমগুলোকে তাদের ফ্রিকোয়েন্সি (frequency) অনুযায়ী সাজিয়ে সর্বোচ্চ N সংখ্যক আইটেম (key, count) টাপল আকারে রিটার্ন করে।
+            এটি Counter ডিকশনারিকে সর্ট করে সবচেয়ে বেশি ব্যবহৃত আইটেমগুলো বের করে এবং (key, value) আকারে লিস্টে রাখে:
+
+            [0][0] এবং [0][1] কীভাবে কাজ করে?
+
+            যেহেতু এটি List of Tuple, তাই ইনডেক্সিং দুই ধাপে হয়:
+
+            উদাহরণ ভ্যালু
+
+            most_common_type[0]
+            লিস্টের ১ম টাপল নেওয়া
+            ("Theft", 5)
+
+            ...[0][0]
+            ওই টাপলের ১ম উপাদান (Name)
+            "Theft"
+
+            ...[0][1]
+            ওই টাপলের ২য় উপাদান (Count)
+            5
+
+            ️ if most_common_type else 'N/A' কেন?
+            যদি কোনো ক্রাইম বা অফিসার না থাকে, তবে most_common(1) খালি লিস্ট [] রিটার্ন করবে। তখন [0] দিলে IndexError আসবে। এই চেকটি সেই এরর প্রতিরোধ করে এবং 'N/A' দেখায়।
+        
+        '''
+        report = f"""
+===== CRIME STATISTICS REPORT =====
+Total Cases          : {stats['total_cases']}
+Open Cases           : {stats['open_cases']}
+Closed Cases         : {stats['closed_cases']}
+Investigating Cases  : {stats['investigating_cases']}
+Total Criminals      : {stats['total_criminals']}
+Wanted Criminals     : {stats['wanted_criminals']}
+Total Officers       : {stats['total_officers']}
+Total Victims        : {stats['total_victims']}
+
+
+Most Common Crime: {most_common_type[0][0] if most_common_type else 'N/A'}({most_common_type[0][1] if most_common_type else 0} cases)
+Most Reported Area   : {most_reported_area[0][0] if most_reported_area else 'N/A'} ({most_reported_area[0][1] if most_reported_area else 0} cases)
+Most Active Officer  : {most_active_officer[0][0] if most_active_officer else 'N/A'} ({most_active_officer[0][1] if most_active_officer else 0} assignments)
 
 
 
+--- Crimes by Month ---
+"""
+'''
+# {most_common_type[0][1]} শুধুমাত্র সংখ্যাটা (যেমন: 5) প্রিন্ট করবে। কিন্তু ইউজার যখন দেখবে, তখন বুঝতে পারবে না এই ৫ কিসের সংখ্যা। তাই পড়ার সুবিধার্থে এবং রিপোর্টটি প্রফেশনাল দেখানোর জন্য ম্যানুয়ালি " cases" শব্দটি যোগ করা হয়েছে।
+# সহজ কথায়:
+# কোড আউটপুট: 5
+# ফরম্যাটেড আউটপুট: 5 cases
+'''
 
 class Victims(Person):
     list_of_victims=[]
